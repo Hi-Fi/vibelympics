@@ -12,7 +12,7 @@ A secure, retro-futuristic web application that converts images into high-resolu
 * **Encrypted:** Uses a self-signed SSL certificate to encrypt all traffic (HTTPS).
 * **CRT Vibe:** The UI mimics an old-school terminal with scanlines, flicker, and phosphor glow.
 
-## 🚀 Installation & Running
+## 🚀 Installation & Running (Docker)
 
 ### Prerequisites
 
@@ -20,25 +20,31 @@ You only need **Docker** installed on your machine.
 
 ### 1. Setup Files
 
-Ensure you have the following 3 files in a folder named `emoji-app`:
+Ensure you have the following files in a folder named `emoji-app`:
 
 1. `app.py` (The Flask Application)
-2. `Dockerfile` (The Secure Build Instructions)
-3. `docker-compose.yml` (The Runner Config)
-4. `requirements.txt` (Dependencies: `Flask`, `Pillow`, `gunicorn`)
+2. `config.py` (Configuration & Security Settings)
+3. `logic.py` (Image Processing Logic)
+4. `ui.py` (HTML/JS Frontend)
+5. `Dockerfile` (The Secure Build Instructions)
+6. `docker-compose.yml` (The Runner Config)
+7. `requirements.txt` (Dependencies)
 
 ### 2. Build & Run
 
 Open your terminal in the folder and run:
 
-    docker-compose up --build
+```bash
+docker-compose up --build
+```
 
 This command will:
 
 1. Download the secure Wolfi OS base image.
 2. Compile the necessary image libraries.
-3. Generate a unique SSL security certificate.
-4. Start the Gunicorn server on port 8080.
+3. Run the security unit tests.
+4. Generate a unique SSL security certificate.
+5. Start the Gunicorn server on port 8080.
 
 ### 3. Access the App
 
@@ -49,6 +55,37 @@ Open your browser and go to:
 > **⚠️ Important:** Because we generate a self-signed security certificate inside the container, your browser will warn you that the connection is "Not Private". This is normal for local secure apps.
 >
 > **Click "Advanced" -> "Proceed to localhost (unsafe)" to continue.**
+
+## 🐍 Local Development (No Docker)
+
+If you prefer to run the app directly on your machine (Python 3.11+ required):
+
+1. **Create a Virtual Environment:**
+
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+2. **Install Dependencies:**
+
+```bash
+pip install -r requirements.txt
+```
+
+3. **Generate SSL Certificates:**
+   The app enforces HTTPS. You must generate self-signed keys in the project folder:
+```bash
+openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365 -subj "/C=US/ST=Dev/L=Home/O=EmojiApp/CN=localhost"
+```
+4. **Run with Gunicorn:**
+```bash
+gunicorn --bind 0.0.0.0:8080 --certfile cert.pem --keyfile key.pem --workers 2 app:app
+```
+5. **Run Tests:**
+```bash
+python tests.py
+```
 
 ## 🕹️ How to Use
 
@@ -74,14 +111,14 @@ The interface is entirely drag-and-drop. No clicking required!
 
 Once the art is generated, use the control bar at the top:
 
-| Button | Function |
-| :--- | :--- |
-| `➖` | **Zoom Out:** Make the emoji pixels smaller (sharper image). |
-| `➕` | **Zoom In:** Make the emoji pixels larger (more abstract). |
-| `💾` | **Save:** Download the current art (or animation frame) as a text file. |
-| `🐢` | **Slower:** Decrease animation speed (Morph mode only). |
-| `🐇` | **Faster:** Increase animation speed (Morph mode only). |
-| `🔄` | **Reset:** Clear everything and start over. |
+| Button | Function | 
+| :--- | :--- | 
+| `➖` | **Zoom Out:** Make the emoji pixels smaller (sharper image). | 
+| `➕` | **Zoom In:** Make the emoji pixels larger (more abstract). | 
+| `💾` | **Save:** Download the current art (or animation frame) as a text file. | 
+| `🐢` | **Slower:** Decrease animation speed (Morph mode only). | 
+| `🐇` | **Faster:** Increase animation speed (Morph mode only). | 
+| `🔄` | **Reset:** Clear everything and start over. | 
 
 ## 🛠️ Technical Details for Nerds
 
@@ -96,5 +133,6 @@ Once the art is generated, use the control bar at the top:
 ## 🛑 Stopping the App
 
 Press `Ctrl+C` in your terminal to stop the container. To remove it completely:
-
-    docker-compose down
+```bash
+docker-compose down
+```
