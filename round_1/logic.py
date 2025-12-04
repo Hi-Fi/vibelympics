@@ -3,7 +3,7 @@ from PIL import Image
 from config import EMOJI_GRADIENT, TARGET_WIDTH, BUCKET_SIZE, FRAMES
 
 def image_to_emojis(img):
-    """Converts a single PIL image to an ASCII-style emoji string."""
+    """Converts a single PIL image to an emoji string using the fixed gradient."""
     pixels = img.getdata()
     emoji_string = ""
     for pixel_val in pixels:
@@ -18,9 +18,7 @@ def image_to_emojis(img):
 
 def process_request(file1_bytes, file2_bytes=None):
     """
-    Handles the processing logic. 
-    If file2 is provided, generates a morph animation.
-    If not, generates a single static image.
+    Handles processing.
     """
     try:
         img1 = Image.open(io.BytesIO(file1_bytes))
@@ -28,7 +26,6 @@ def process_request(file1_bytes, file2_bytes=None):
         ratio = height / width / 0.95
         new_height = int(TARGET_WIDTH * ratio)
         
-        # Resize Image 1
         img1 = img1.resize((TARGET_WIDTH, new_height)).convert("L")
         
         frames = []
@@ -38,13 +35,11 @@ def process_request(file1_bytes, file2_bytes=None):
             img2 = Image.open(io.BytesIO(file2_bytes))
             img2 = img2.resize((TARGET_WIDTH, new_height)).convert("L")
             
-            # Generate Blend Frames
             for i in range(FRAMES + 1):
                 alpha = i / FRAMES
                 blended = Image.blend(img1, img2, alpha)
                 frames.append(image_to_emojis(blended))
             
-            # Add ping-pong loop (reverse back to start)
             frames += frames[-2:0:-1]
             
         else:

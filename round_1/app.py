@@ -3,7 +3,6 @@ from flask_talisman import Talisman
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-# Import from split files
 from config import CSP_POLICY, MAX_UPLOAD_SIZE
 from logic import process_request
 from ui import HTML_TEMPLATE
@@ -38,6 +37,7 @@ def process():
     if 'file2' in request.files and request.files['file2'].filename != '':
         file2 = request.files['file2'].read()
 
+    # Process without dynamic user flags
     frames = process_request(request.files['file1'].read(), file2)
     
     if not frames:
