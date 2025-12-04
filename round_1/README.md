@@ -11,6 +11,7 @@ A secure, retro-futuristic web application that converts images into high-resolu
 * **Secure & Hardened:** Built on **Chainguard** (Wolfi OS) images with no shell access, running as a non-root user.
 * **Encrypted:** Uses a self-signed SSL certificate to encrypt all traffic (HTTPS).
 * **CRT Vibe:** The UI mimics an old-school terminal with scanlines, flicker, and phosphor glow.
+* **🇫🇮 Easter Egg:** A hidden interactive element paying homage to the developer's location.
 
 ## 🚀 Installation & Running (Docker)
 
@@ -50,7 +51,7 @@ This command will:
 
 Open your browser and go to:
 
-👉 https://localhost:8080
+👉 `https://localhost:8080`
 
 > **⚠️ Important:** Because we generate a self-signed security certificate inside the container, your browser will warn you that the connection is "Not Private". This is normal for local secure apps.
 >
@@ -62,30 +63,35 @@ If you prefer to run the app directly on your machine (Python 3.11+ required):
 
 1. **Create a Virtual Environment:**
 
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
 2. **Install Dependencies:**
 
-```bash
-pip install -r requirements.txt
-```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 3. **Generate SSL Certificates:**
    The app enforces HTTPS. You must generate self-signed keys in the project folder:
-```bash
-openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365 -subj "/C=US/ST=Dev/L=Home/O=EmojiApp/CN=localhost"
-```
+
+   ```bash
+   openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365 -subj "/C=US/ST=Dev/L=Home/O=EmojiApp/CN=localhost"
+   ```
+
 4. **Run with Gunicorn:**
-```bash
-gunicorn --bind 0.0.0.0:8080 --certfile cert.pem --keyfile key.pem --workers 2 app:app
-```
+
+   ```bash
+   gunicorn --bind 0.0.0.0:8080 --certfile cert.pem --keyfile key.pem --workers 2 app:app
+   ```
+
 5. **Run Tests:**
-```bash
-python tests.py
-```
+
+   ```bash
+   python tests.py
+   ```
 
 ## 🕹️ How to Use
 
@@ -111,14 +117,14 @@ The interface is entirely drag-and-drop. No clicking required!
 
 Once the art is generated, use the control bar at the top:
 
-| Button | Function | 
-| :--- | :--- | 
-| `➖` | **Zoom Out:** Make the emoji pixels smaller (sharper image). | 
-| `➕` | **Zoom In:** Make the emoji pixels larger (more abstract). | 
-| `💾` | **Save:** Download the current art (or animation frame) as a text file. | 
-| `🐢` | **Slower:** Decrease animation speed (Morph mode only). | 
-| `🐇` | **Faster:** Increase animation speed (Morph mode only). | 
-| `🔄` | **Reset:** Clear everything and start over. | 
+| Button | Function |
+| :--- | :--- |
+| `➖` | **Zoom Out:** Make the emoji pixels smaller (sharper image). |
+| `➕` | **Zoom In:** Make the emoji pixels larger (more abstract). |
+| `💾` | **Save:** Download the current art (or animation frame) as a text file. |
+| `🐢` | **Slower:** Decrease animation speed (Morph mode only). |
+| `🐇` | **Faster:** Increase animation speed (Morph mode only). |
+| `🔄` | **Reset:** Clear everything and start over. |
 
 ## 🛠️ Technical Details for Nerds
 
@@ -133,6 +139,7 @@ Once the art is generated, use the control bar at the top:
 ## 🛑 Stopping the App
 
 Press `Ctrl+C` in your terminal to stop the container. To remove it completely:
+
 ```bash
 docker-compose down
 ```

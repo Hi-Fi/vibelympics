@@ -78,6 +78,41 @@ HTML_TEMPLATE = """
         .btn:hover { transform: scale(1.1); opacity: 1; border-color: #666; text-shadow: 0 0 10px white; }
         .btn:active { transform: scale(0.95); }
 
+        /* --- CORNER FLAG --- */
+        .corner-flag {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 1.5rem; 
+            opacity: 0.2;      
+            z-index: 1000;
+            cursor: pointer;   /* Changed to pointer to indicate interaction */
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Smooth, bouncy expansion */
+            animation: flag-float 4s ease-in-out infinite;
+            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
+        }
+
+        /* Expanded State */
+        .corner-flag.fullscreen {
+            bottom: 0;
+            right: 0;
+            width: 100vw;
+            height: 100vh;
+            font-size: 50vh; /* Huge size */
+            opacity: 1;
+            background-color: rgba(0, 0, 0, 0.95); /* Dim background */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: none; /* Stop floating */
+            z-index: 9999;
+        }
+
+        @keyframes flag-float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-3px) rotate(5deg); }
+        }
+
         /* --- RESULT --- */
         pre { 
             font-size: 6px; line-height: 1.0; white-space: pre-wrap; word-break: break-all;
@@ -113,6 +148,9 @@ HTML_TEMPLATE = """
             <pre id="art"></pre>
         </div>
     </div>
+
+    <!-- The Corner Flag (Click to toggle fullscreen) -->
+    <div class="corner-flag" onclick="this.classList.toggle('fullscreen')">🇫🇮</div>
 
     <script nonce="{{ csp_nonce() }}">
         const dropZone = document.getElementById('drop-zone');
