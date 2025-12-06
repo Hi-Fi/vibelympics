@@ -1,0 +1,33 @@
+{
+    "name": "test-project",
+    "version": "1.0.0",
+    "lockfileVersion": 1,
+    "requires": true,
+    "dependencies": {
+        "lodash": {
+            "version": "4.17.0",
+            "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.0.tgz",
+            "integrity": "sha1-N10flsp26g9tLd9et7n1D8aR1KM="
+        },
+        "express": {
+            "version": "4.0.0",
+            "resolved": "https://registry.npmjs.org/express/-/express-4.0.0.tgz",
+            "integrity": "sha1-N10flsp26g9tLd9et7n1D8aR1KM=",
+            "dependencies": {
+                "qs": {
+                    "version": "0.6.6"
+                }
+            }
+        },
+        "dev-package": {
+            "version": "1.0.0",
+            "dev": true,
+            "dependencies": {
+                "vulnerable-dev-dep": {
+                    "version": "1.0.0",
+                    "dev": true
+                }
+            }
+        }
+    }
+}

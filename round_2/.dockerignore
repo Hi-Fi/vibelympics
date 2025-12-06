@@ -1,0 +1,10 @@
+# Ignore test files and development artifacts
+test_*.lock
+test_*.yaml
+batch_debug.json
+debug_osv.py
+*.pyc
+__pycache__/
+.git/
+.gitignore
+README.md
