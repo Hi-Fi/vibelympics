@@ -4,8 +4,9 @@ FROM cgr.dev/chainguard/python:latest-dev AS builder
 # Set working directory
 WORKDIR /app
 
-# Copy the auditor script
+# Copy the auditor script and lib modules
 COPY npm_auditor.py .
+COPY lib/ ./lib/
 
 # Use the runtime image (even more minimal, non-root by default)
 FROM cgr.dev/chainguard/python:latest
@@ -13,8 +14,9 @@ FROM cgr.dev/chainguard/python:latest
 # Set working directory
 WORKDIR /app
 
-# Copy the script from builder
+# Copy the script and lib from builder
 COPY --from=builder /app/npm_auditor.py .
+COPY --from=builder /app/lib ./lib
 
 # Chainguard images run as non-root by default (uid 65532)
 # No need to explicitly set USER
