@@ -119,11 +119,50 @@ cat package-lock.json | docker run -i npm-auditor - --format npm --severity HIGH
 
 ## 🧪 Development
 
-Run tests with the provided sample files:
+### Project Structure
+
+```
+round_2/
+├── npm_auditor.py      # Main entry point (511 lines)
+├── lib/                # Modular libraries
+│   ├── api_client.py   # NPM Registry & OSV API clients
+│   ├── cvss.py         # CVSS score calculation
+│   ├── formatters.py   # Output formatting & colors
+│   └── parsers.py      # Lock file parsers (npm/yarn/pnpm)
+├── tests/              # Unit tests
+│   └── test_cvss.py    # CVSS module tests
+├── Dockerfile          # Chainguard-based container
+└── .dockerignore       # Build exclusions
+```
+
+### Running Tests
+
+**Unit tests (requires Python 3):**
+```bash
+cd round_2
+python3 tests/test_cvss.py
+```
+
+**Integration tests with sample files:**
 ```bash
 python3 npm_auditor.py test_yarn.lock --format yarn
 python3 npm_auditor.py test_pnpm.lock.yaml --format pnpm
+python3 npm_auditor.py package-lock.json
 ```
+
+**Docker integration test:**
+```bash
+cat test_pnpm.lock.yaml | docker run -i npm-auditor - --format pnpm
+```
+
+### Module Overview
+
+| Module | Purpose |
+|--------|---------|
+| `api_client.py` | HTTP calls to npm registry and OSV vulnerability API |
+| `cvss.py` | Calculate CVSS v2/v3 scores, severity ratings |
+| `formatters.py` | ANSI colors, table formatting, summary output |
+| `parsers.py` | Parse yarn.lock, pnpm-lock.yaml, npm dependency graphs |
 
 ## 📄 License
 
