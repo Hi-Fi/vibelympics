@@ -16,9 +16,16 @@ from lib.cvss import (
     calculate_cvss_v3_score,
     calculate_cvss_v2_score,
     get_severity_rating,
-    get_severity_priority
+    get_severity_priority,
+    get_attack_vector  # Ensure this function exists in lib/cvss.py
 )
-from lib.formatters import print_summary, colorize_severity
+from lib.formatters import (
+    print_summary, 
+    colorize_severity, 
+    print_banner, 
+    get_random_scanning_message, 
+    Colors
+)
 from lib.parsers import (
     parse_yarn_lock,
     parse_pnpm_lock,
@@ -92,7 +99,7 @@ def safe_read_stdin():
         return None, "Error reading from stdin"
 
 
-def process_finding(v, package_name, version, category, severity_filter):
+def process_finding(v, package_name, version, category, severity_filter, local_only=False):
     # Extract CVE
     cve = "N/A"
     aliases = v.get("aliases", [])
@@ -129,10 +136,17 @@ def process_finding(v, package_name, version, category, severity_filter):
                     severity = vector
                 break
     
-    # Filtering
+    # Filtering by Severity
     if severity_filter:
         rating = get_severity_rating(severity, vector)
         if rating not in severity_filter:
+            return None
+
+    # Filtering by Attack Vector (Local vs Network)
+    if local_only and vector:
+        attack_vector = get_attack_vector(vector)
+        # If the attack vector is NETWORK, skip this vulnerability
+        if attack_vector == "NETWORK":
             return None
 
     # Extract fixed version
@@ -164,7 +178,7 @@ def process_finding(v, package_name, version, category, severity_filter):
 
 MAX_DEPTH = 6
 
-def audit_recursive(package_name, version_range, visited, findings, category, severity_filter=None, debug=False, depth=0):
+def audit_recursive(package_name, version_range, visited, findings, category, severity_filter=None, local_only=False, debug=False, depth=0):
     indent = "  " * depth
     if depth > MAX_DEPTH:
         if debug: print(f"{indent}Max depth reached, skipping dependencies of {package_name}")
@@ -217,7 +231,7 @@ def audit_recursive(package_name, version_range, visited, findings, category, se
         
         # Collect findings
         for v in vulns:
-            finding = process_finding(v, package_name, resolved_version, category, severity_filter)
+            finding = process_finding(v, package_name, resolved_version, category, severity_filter, local_only)
             if finding:
                 findings.append(finding)
 
@@ -231,18 +245,18 @@ def audit_recursive(package_name, version_range, visited, findings, category, se
     all_deps.update(opt_deps)
     
     for dep_name, dep_range in all_deps.items():
-        audit_recursive(dep_name, dep_range, visited, findings, category, severity_filter, debug, depth + 1)
+        audit_recursive(dep_name, dep_range, visited, findings, category, severity_filter, local_only, debug, depth + 1)
 
-def audit_group(group_name, dependencies, visited, findings, severity_filter, debug):
+def audit_group(group_name, dependencies, visited, findings, severity_filter, local_only, debug):
     if not dependencies:
         return
     if debug:
         print(f"\n--- Checking {len(dependencies)} {group_name} Dependencies ---")
     for dep_name, dep_range in dependencies.items():
-        audit_recursive(dep_name, dep_range, visited, findings, category=group_name, severity_filter=severity_filter, debug=debug, depth=1)
+        audit_recursive(dep_name, dep_range, visited, findings, category=group_name, severity_filter=severity_filter, local_only=local_only, debug=debug, depth=1)
 
 
-def audit_lock_file(file_path, debug=False, severity_filter=None, format='npm'):
+def audit_lock_file(file_path, debug=False, severity_filter=None, local_only=False, format='npm'):
     # Handle stdin input
     if file_path == '-':
         if debug: print("Reading lock file from stdin...")
@@ -256,6 +270,8 @@ def audit_lock_file(file_path, debug=False, severity_filter=None, format='npm'):
         content = None  # Will be read later for npm format
         
     print(f"--- Auditing Lock File: {file_display} ---\n")
+    if local_only:
+        print(f"{Colors.CYAN}ℹ️  Filtering enabled: Ignoring network-only attack vectors (AV:N){Colors.RESET}\n")
     
     findings = []
     
@@ -299,7 +315,7 @@ def audit_lock_file(file_path, debug=False, severity_filter=None, format='npm'):
                         print(f"  ALARM: Found {len(vulns)} vulnerabilities!")
                     
                     for v in vulns:
-                        finding = process_finding(v, pkg_name, version, category, severity_filter)
+                        finding = process_finding(v, pkg_name, version, category, severity_filter, local_only)
                         if finding:
                             finding['path'] = [pkg_name]  # Yarn doesn't provide dep graph easily
                             findings.append(finding)
@@ -346,7 +362,7 @@ def audit_lock_file(file_path, debug=False, severity_filter=None, format='npm'):
                         print(f"  ALARM: Found {len(vulns)} vulnerabilities!")
                     
                     for v in vulns:
-                        finding = process_finding(v, pkg_name, version, category, severity_filter)
+                        finding = process_finding(v, pkg_name, version, category, severity_filter, local_only)
                         if finding:
                             finding['path'] = [pkg_name]  # PNPM structure is complex
                             findings.append(finding)
@@ -355,10 +371,12 @@ def audit_lock_file(file_path, debug=False, severity_filter=None, format='npm'):
         return
     
     # NPM format (default)
-    content, error = safe_read_file(file_path)
-    if error:
-        print(f"Error: {error}")
-        return
+    # If stdin was already read into `content`, don't re-read the file path (which may be '-')
+    if content is None:
+        content, error = safe_read_file(file_path)
+        if error:
+            print(f"Error: {error}")
+            return
     
     try:
         lock_data = json.loads(content)
@@ -409,7 +427,6 @@ def audit_lock_file(file_path, debug=False, severity_filter=None, format='npm'):
             
             if batch_vulns:
                 # If vulnerabilities found in batch, fetch FULL details individually
-                # because batch API returns incomplete data (e.g. no summary/severity/fixed).
                 if debug: print(f"  Vulnerabilities detected in batch. Fetching full details for {dep_name}@{version}...")
                 
                 full_data = check_vulnerabilities(dep_name, version)
@@ -426,24 +443,20 @@ def audit_lock_file(file_path, debug=False, severity_filter=None, format='npm'):
                         print(f"  Path: {' > '.join(dep_path)}")
 
                      for v in vulns:
-                        finding = process_finding(v, dep_name, version, current_category, severity_filter)
+                        finding = process_finding(v, dep_name, version, current_category, severity_filter, local_only)
                         if finding:
                             finding['path'] = dep_path
                             findings.append(finding)
                         
     # Fallback to "dependencies" (lockfileVersion 1 or recursed structure)
     elif "dependencies" in lock_data:
-        # Note: Recursive method needs update to track path. 
-        # For now, pass empty path or update recursive sig.
-        # Given instruction specific to "bundled dependencies", we focus on the v3 structure first or update recursive.
-        # Let's pass a path list to recursive.
-        audit_lock_recursive(lock_data["dependencies"], findings, "Root", severity_filter, debug, path=[])
+        audit_lock_recursive(lock_data["dependencies"], findings, "Root", severity_filter, local_only, debug, path=[])
     else:
         if debug: print("No 'packages' or 'dependencies' found in lock file.")
 
     print_summary(findings)
 
-def audit_lock_recursive(dependencies, findings, parent_category, severity_filter, debug, depth=0, path=None):
+def audit_lock_recursive(dependencies, findings, parent_category, severity_filter, local_only, debug, depth=0, path=None):
     if path is None: path = []
     
     indent = "  " * depth
@@ -474,14 +487,14 @@ def audit_lock_recursive(dependencies, findings, parent_category, severity_filte
             if debug:
                 print(f"{indent}  ALARM: Found {len(vulns)} vulnerabilities!")
             for v in vulns:
-                finding = process_finding(v, dep_name, version, current_category, severity_filter)
+                finding = process_finding(v, dep_name, version, current_category, severity_filter, local_only)
                 if finding:
                     finding['path'] = current_path
                     findings.append(finding)
         
         # Recurse
         if "dependencies" in dep_info:
-            audit_lock_recursive(dep_info["dependencies"], findings, current_category, severity_filter, debug, depth + 1, current_path)
+            audit_lock_recursive(dep_info["dependencies"], findings, current_category, severity_filter, local_only, debug, depth + 1, current_path)
 
 def get_category_priority(cat):
     if cat == "Root": return 0
@@ -491,8 +504,20 @@ def get_category_priority(cat):
     return 4
 
 
-def audit_package(package_name, version=None, debug=False, severity_filter=None):
+def audit_package(package_name, version=None, debug=False, severity_filter=None, local_only=False):
+    # --- 🥚 EASTER EGG START 🥚 ---
+    if package_name.lower() == "finland":
+        print(f"\n{Colors.CYAN}   🇫🇮  SUOMI MAINITTU! TORILLA TAVATAAN!  🇫🇮{Colors.RESET}")
+        print(f"{Colors.CYAN}   System Status: {Colors.BOLD}SISU LEVELS CRITICAL{Colors.RESET}")
+        print(f"{Colors.CYAN}   Sauna: {Colors.GREEN}WARMING UP (80°C){Colors.RESET}")
+        print(f"{Colors.CYAN}   Coffee consumption: {Colors.HIGH}HIGHEST IN THE WORLD{Colors.RESET}")
+        print(f"\n{Colors.MAGENTA}   (Exiting before the salmiakki kicks in...){Colors.RESET}\n")
+        return
+    # --- 🥚 EASTER EGG END 🥚 ---
+
     print(f"--- Auditing Package: {package_name} ---\n")
+    if local_only:
+        print(f"{Colors.CYAN}ℹ️  Filtering enabled: Ignoring network-only attack vectors (AV:N){Colors.RESET}\n")
     
     # Initial setup
     visited = set()
@@ -541,19 +566,19 @@ def audit_package(package_name, version=None, debug=False, severity_filter=None)
             for v in vulns:
                  print(f"  - [{v.get('id')}] {v.get('summary', 'No summary')}")
         for v in vulns:
-            finding = process_finding(v, package_name, target_version, "Root", severity_filter)
+            finding = process_finding(v, package_name, target_version, "Root", severity_filter, local_only)
             if finding:
                 findings.append(finding)
     
     # 3. Check Dependencies by Category
     prod_deps = version_data.get("dependencies", {})
-    audit_group("Mandatory", prod_deps, visited, findings, severity_filter, debug)
+    audit_group("Mandatory", prod_deps, visited, findings, severity_filter, local_only, debug)
 
     dev_deps = version_data.get("devDependencies", {})
-    audit_group("Dev", dev_deps, visited, findings, severity_filter, debug)
+    audit_group("Dev", dev_deps, visited, findings, severity_filter, local_only, debug)
 
     opt_deps = version_data.get("optionalDependencies", {})
-    audit_group("Optional", opt_deps, visited, findings, severity_filter, debug)
+    audit_group("Optional", opt_deps, visited, findings, severity_filter, local_only, debug)
 
     if not (prod_deps or dev_deps or opt_deps):
         if debug:
@@ -570,14 +595,21 @@ if __name__ == "__main__":
     parser.add_argument("--debug", "-d", help="Enable verbose debug output", action="store_true")
     parser.add_argument("--severity", "-s", help="Filter by severity (LOW, MEDIUM, HIGH, CRITICAL)", default=None)
     parser.add_argument("--format", "-f", help="Lock file format (npm, yarn, pnpm)", choices=['npm', 'yarn', 'pnpm'], default='npm')
+    parser.add_argument("--local", action="store_true", help="Ignore network-based (server) vulnerabilities")
+    
     args = parser.parse_args()
 
     severity_filter = None
     if args.severity:
         severity_filter = [s.strip().upper() for s in args.severity.split(',')]
 
+    # Show banner
+    print_banner()
+    print(get_random_scanning_message())
+    print()
+
     # Check if package argument is a file or stdin
     if args.package == '-' or os.path.isfile(args.package):
-        audit_lock_file(args.package, args.debug, severity_filter, args.format)
+        audit_lock_file(args.package, args.debug, severity_filter, args.local, args.format)
     else:
-        audit_package(args.package, args.version, args.debug, severity_filter)
+        audit_package(args.package, args.version, args.debug, severity_filter, args.local)
