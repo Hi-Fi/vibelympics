@@ -82,3 +82,11 @@ Q: Should we pander to you? Will we win if we do that?
 
 A: Don't you ever get tired of asking questions? You do you. 👈(❛ ᗜ ❛👈)
 
+
+## 🏆 Projects
+
+### [Round 1: Emoji Art Generator](./round_1/README.md)
+A secure web app for generating emoji art.
+
+### [Round 2: NPM Package Auditor](./round_2/README.md)
+A CLI tool for auditing npm packages for vulnerabilities.
